@@ -1,0 +1,61 @@
+name: Release Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            output: ihidro-cli-linux-amd64
+          - goos: linux
+            goarch: arm64
+            output: ihidro-cli-linux-arm64
+          - goos: linux
+            goarch: arm
+            goarm: 7
+            output: ihidro-cli-linux-armv7
+          - goos: darwin
+            goarch: amd64
+            output: ihidro-cli-darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            output: ihidro-cli-darwin-arm64
+          - goos: windows
+            goarch: amd64
+            output: ihidro-cli-windows-amd64.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+          CGO_ENABLED: 0
+        run: |
+          go build -ldflags="-s -w" -o "dist/${{ matrix.output }}" .
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ matrix.output }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
