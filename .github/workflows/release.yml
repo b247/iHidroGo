@@ -1,4 +1,4 @@
-name: Release Binaries
+name: Release Linux Binaries
 
 on:
   push:
@@ -9,32 +9,9 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build-and-release:
     name: Build and Release
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - goos: linux
-            goarch: amd64
-            output: ihidro-cli-linux-amd64
-          - goos: linux
-            goarch: arm64
-            output: ihidro-cli-linux-arm64
-          - goos: linux
-            goarch: arm
-            goarm: 7
-            output: ihidro-cli-linux-armv7
-          - goos: darwin
-            goarch: amd64
-            output: ihidro-cli-darwin-amd64
-          - goos: darwin
-            goarch: arm64
-            output: ihidro-cli-darwin-arm64
-          - goos: windows
-            goarch: amd64
-            output: ihidro-cli-windows-amd64.exe
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -44,18 +21,20 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Build binary
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          GOARM: ${{ matrix.goarm }}
-          CGO_ENABLED: 0
+      - name: Build Binaries
         run: |
-          go build -ldflags="-s -w" -o "dist/${{ matrix.output }}" .
+          # Standard Linux 64-bit
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/ihidro-cli-linux-amd64 .
+          
+          # Linux ARM 64-bit (Modern Raspberry Pi / Servers)
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/ihidro-cli-linux-arm64 .
+          
+          # Linux ARMv7 (Older Raspberry Pi / IoT)
+          GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/ihidro-cli-linux-armv7 .
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/${{ matrix.output }}
+          files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
