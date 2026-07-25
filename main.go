@@ -24,6 +24,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"os"
@@ -442,18 +443,41 @@ func extractData(body map[string]interface{}) map[string]interface{} {
 	return nil
 }
 
-func loadConfig(path string) Config {
-	var c Config
-	d, _ := os.ReadFile(path)
-	_ = json.Unmarshal(d, &c)
-	if v := os.Getenv("HIDRO_USER"); v != "" {
-		c.User = v
+func loadConfig(input string) Config {
+	var cfg Config
+
+	if err := json.Unmarshal([]byte(input), &cfg); err == nil {
+		if cfg.User != "" || cfg.Pass != "" {
+			return cfg
+		}
 	}
-	if v := os.Getenv("HIDRO_PASS"); v != "" {
-		c.Pass = v
+
+	data, err := os.ReadFile(input)
+	if err != nil {
+		if os.IsNotExist(err) {
+			createDefaultConfig(input)
+			fmt.Printf("Config file '%s' not found. A template has been created.\n", input)
+			fmt.Println("Please either:")
+			fmt.Printf("  A) Edit '%s' with your credentials\n", input)
+			fmt.Println("  B) Provide inline JSON: -authConfig '{\"user\":\"...\", \"pass\":\"...\", \"uan\":\"...\"}'")
+			os.Exit(0)
+		}
+		log.Fatalf("Error reading file: %v", err)
 	}
-	if v := os.Getenv("HIDRO_UAN"); v != "" {
-		c.UAN = v
+
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		log.Fatalf("File exists but contains invalid JSON: %v", err)
 	}
-	return c
+
+	return cfg
+}
+
+func createDefaultConfig(path string) {
+	template := Config{
+		User: "your_email@example.com",
+		Pass: "your_password",
+		UAN:  "your_10_digit_hidroelectrica_cod_cont_contract_number",
+	}
+	data, _ := json.MarshalIndent(template, "", "  ")
+	_ = os.WriteFile(path, data, 0644)
 }
