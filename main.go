@@ -104,10 +104,17 @@ func main() {
 	}
 
 	if *submitIndex != "" {
-		_, err := client.SubmitIndex(*submitIndex)
+		res, err := client.SubmitIndex(*submitIndex)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "SubmitIndex failed: %s\n", err)
 			os.Exit(1)
+		}
+
+		if resultMap, ok := res.Body["result"].(map[string]interface{}); ok {
+			if msg, ok := resultMap["message"].(string); ok && msg != "Values submitted" {
+				fmt.Fprintf(os.Stderr, "SubmitIndex error: %s\n", msg)
+				os.Exit(1)
+			}
 		}
 		fmt.Printf("SubmitIndex success: %s\n", *submitIndex)
 	}
